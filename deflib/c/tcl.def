@@ -1,0 +1,104 @@
+subcode: _autoload
+    $include stdio
+    $include stdlib
+    $call @global
+
+subcode: tcl_frame
+    $list _tcl_main
+
+subcode: tk_frame
+    $list _tk_main
+
+fncode: _tcl_main(main)
+    &call tcl
+        $call main2
+
+fncode: _tk_main(main)
+    &call tk
+        $call main2
+
+#----------------------------------------------- 
+subcode: tcl
+    $include tcl
+    $uselib tcl
+    $global Tcl_Interp* tcl
+    tcl = Tcl_CreateInterp() 
+    $if !tcl
+        $call die, "Could not create Tcl"
+    $call @init_commands
+    BLOCK
+
+    Tcl_DeleteInterp(tcl)
+
+    # --------------------------------------- 
+    subcode: Command(name)
+        $(set:this=tcl->)
+        $function cmdfn_$(name)(ClientData _cd, Tcl_Interp* tcl, int argc, const char** argv)
+            $return_type int
+            BLOCK
+            return TCL_OK
+        Tcl_CreateCommand(tcl, "$(name)", cmdfn_$(name), NULL, NULL)
+
+        subcode: SetResult(s)
+            Tcl_SetResult(tcl, $(s), TCL_VOLATILE)
+
+    subcode: Eval(@cmd)
+        Tcl_Eval(tcl, $(cmd))
+
+    subcode: tcl_eval(code)
+        $global s_$(code)=[$(code)]
+        $if TCL_ERROR == Tcl_Eval(tcl, s_$(code))
+            $print "Tcl Error: [%s]", tcl->result
+
+#----------------------------------------------- 
+subcode: tk
+    $include tk
+    $uselib tk, X11
+    &call tcl
+        $if Tcl_Init(tcl)!= TCL_OK
+            $call die, "Error Tcl_Init: %s", tcl->result
+        $if Tk_Init(tcl) != TCL_OK
+            $call die, "Error Tk_Init: %s", tcl->result
+        BLOCK
+        Tk_MainLoop()
+    # ---- image photo ------------
+    subcode: set_image_block(name, w, h)
+        $local Tk_PhotoHandle imh
+        imh = Tk_FindPhoto(tcl, $(name))
+        $if imh
+            &call create_image_block, $(w), $(h)
+                BLOCK
+            Tk_PhotoPutBlock(tcl, imh, &imb, 0, 0, $(w), $(h), TK_PHOTO_COMPOSITE_SET)
+            free(pc_imb)
+        $else
+            $call warn, image handle is NULL
+
+    subcode: create_image_block(w, h)
+        $(set:pixel_size=4)
+        $local Tk_PhotoImageBlock imb
+        imb.width = $(w)
+        imb.height = $(h)
+        imb.pitch = $(w)*$(pixel_size)
+        imb.pixelSize = $(pixel_size)
+        $(for:0-3 and 0,1,2,3)
+            imb.offset[$1] = $2
+        $allocate($(w)*$(h)*$(pixel_size), 0) pc_imb
+        imb.pixelPtr = pc_imb
+        BLOCK
+
+        subcode: each_pixel
+            k=0
+            $for y=0:$(h)
+                $for x=0:$(w)
+                    BLOCK
+                    k+=4
+
+            subcode: set_rgba(r,g,b,a)
+                pc_imb[k]=$(a)
+                pc_imb[k+1]=$(b)
+                pc_imb[k+2]=$(g)
+                pc_imb[k+3]=$(r)
+
+            subcode: set_u4(c)
+                *((uint32_t*)&pc_imb[k]) = $(c)
+

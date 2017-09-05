@@ -1,0 +1,296 @@
+subcode:: parsecode_func
+    $(if:0)
+        $case $func eq "tk_init_top"
+            $call tk_init_top
+            return
+        $case $func eq "tk_output"
+            $call tk_output
+            return
+    $case $func =~/^(grid|pack|place)$/
+        return "CALLBACK $1 $param"
+
+subcode:: parsecode_special
+    $case $l=~/^CALLBACK\s+(\w+)\s*(.*)/
+        my ($func, $param)=($1, $2)
+        my $codelist = $MyDef::compileutil::named_blocks{"last_grab"}
+
+        &call tk_callback_frame
+            $(for:grid,pack,place)
+                $case $func eq "$1"
+                    tk_$1($codelist, $param)
+        return
+
+#-----------------------------------------------
+subcode:: init_page
+    $global $tk={}
+    $global $tk_top_index
+    $tk_top_index=0
+
+subcode: tk_init_top
+    $tk->{_list}=[]
+    $tk->{_config}=[]
+    $tk_top_index++
+    my $prefix
+    $if $tk_top_index>1
+        $prefix=".top$tk_top_index"
+
+subcode: tk_callback_frame
+    $tk->{_list}=[]
+    $tk->{_config}=[]
+    BLOCK
+    $call tk_output
+
+#-----------------------------------------------
+subcode: init_layout
+    my $_l = $tk->{_list}
+    my ($prefix, $root)
+    $if $param
+        $prefix = $param
+    $root = $prefix
+    $if !$root
+        $root = "."
+
+fncode: tk_grid($codelist, $param)
+    $call init_layout
+    my (@sticky, $pad)
+    my $r=0
+    &call each_codelist
+        $call filter_meta
+        my @t = split /,\s+/, $l
+        $foreach $t,$c in @t
+            $call set_id
+            my $grid = "-row $r -column $c"
+            $call append_meta
+            $if $t=~/^-\s*$/
+                NOOP
+            $call parse_widget, grid, $t
+        $r++
+
+    subcode: filter_meta
+        $if $l=~/^sticky:\s*(.+)/
+            @sticky = split /,\s*/, $1
+            next
+        $elif $l=~/^pad:\s*(.+)/
+            my @t = split /\s+/, $1
+            $if @t==2
+                $pad = "-padx $t[0] -pady $t[1]"
+            $elif @t==1
+                $pad = "-padx $t[0] -pady $t[0]"
+            next
+        $elif $l=~/^weight:\s*(.*)/
+            my $_c = $tk->{_config}
+            my @t = split /\s+/, $1
+            my $type = "columnconfigure"
+            my $i=0
+            $foreach $t in @t
+                $if $t eq "x"
+                    $type = "rowconfigure"
+                    $i = 0
+                $else
+                    $if $t ne "-"
+                        push @$_c, "grid $type $root $i -weight $t"
+                    $i++
+            next
+        $elif $l=~/^SOURCE/
+            next
+
+    subcode: set_id
+        my $id="$prefix.g$r$c"
+
+    subcode: append_meta
+        $if @sticky
+            $grid.= " -sticky $sticky[$c]"
+        $if $pad
+            $grid.= " $pad"
+
+fncode: tk_pack($codelist, $param)
+    $call init_layout
+    my $idx=0
+    &call each_codelist
+        # left: w1, w2, ..., wn
+        my $pack="-side top"
+        $call @filter_meta
+        my @t = split /,\s+/, $l
+        $foreach $t in @t
+            $call set_id
+            $call parse_widget, pack, $t
+
+    subcode: set_id
+        my $id="$prefix.p$idx"
+        $idx++
+
+    subcode: filter_meta
+        $if $l=~/^\s*(top|bottom|left|right):\s+(.*)/
+            $pack = "-side $1"
+            $l =$2
+
+fncode: tk_place($codelist, $param)
+    $call init_layout
+    my $idx=0
+    &call each_codelist
+        $if $l=~/^\s*(\S+)\s*(\S+)\s*(.*)/
+            my ($x,$y, $t)=($1,$2,$3)
+            $call set_id
+            my $place
+            $(for:x,y)
+                $if $$1=~/^0\./
+                    $place.= " -rel$1 $$1"
+                $else
+                    $place.= " -$1 $$1"
+            $call filter_meta
+            $call parse_widget, place, $t
+
+    subcode: set_id
+        my $id="$prefix.p$idx"
+        $idx++
+
+    subcode: filter_meta
+        $if $t=~/^(c|[tb][lr]|[ns][ew])\s*/
+            $t = $';
+            my $a = $1
+            $a=~tr/tblr/nsew/
+            $place.= " -anchor $a"
+
+# -----------
+subcode: each_codelist
+    my $_i = -1
+    my $_n = @$codelist
+    $while $_i <$_n-1
+        $_i++
+        my $l = $codelist->[$_i]
+        $if $l=~/^SOURCE/
+            next
+        BLOCK
+
+    subcode: grab
+        my @grab_list
+        $if $codelist->[$_i+1] =~/^SOURCE_INDENT/
+            $_i = $_i+2
+            my $grab_indent = 1
+            $while $_i<$_n; $_i++
+                my $l = $codelist->[$_i]
+                push @grab_list, $l
+                $if $l=~/^SOURCE_INDENT/
+                    $grab_indent++
+                $elif $l=~/^SOURCE_DEDENT/
+                    $grab_indent--
+                    $if $grab_indent==0
+                        pop @grab_list
+                        last
+        $else
+            # print "grab: [", $codelist->[$_i+1], "]\n"
+
+                
+
+#-----------------------------------------------
+subcode: tk_output
+    my $macros = $MyDef::def->{macros}
+    push @$out, "NEWLINE"
+    $foreach $o in @{$tk->{_list}}
+        $call get_obj_t
+        $if $o->{_scroll}
+            my $id = $o->{_id}
+            $call make_scroll
+            $t = $id
+        $else
+            $call get_obj_h
+            $t = "[$t]"
+        $call check_name
+        my $l
+        $if $o->{_place}
+            $l = "place $t $o->{_place}"
+        $elif $o->{_grid}
+            $l = "grid $t $o->{_grid}"
+        $elif $o->{_pack}
+            $l = "pack $t $o->{_pack}"
+        $else
+            $l = $t
+        push @$out, $l
+    push @$out, "NEWLINE"
+    $foreach $l in @{$tk->{_config}}
+        push @$out, $l
+    push @$out, "NEWLINE"
+
+    # -----------------
+    subcode: get_obj_h
+        my $h = $o->{_type}
+        $if $o->{_type} =~/(entry|label|button)/
+            $h = "ttk::$1"
+        $t = "$h $o->{_id} $t"
+
+    subcode: get_obj_t
+        my $t
+        $foreach $k in sort keys %$o
+            $if $k=~/^_/
+                next
+            $else
+                $t.=" -$k $o->{$k}"
+    # ------------------
+    subcode: check_name
+        $if $o->{_name}
+            $macros->{"id_$o->{_name}"} = $o->{_id}
+
+    subcode: make_scroll
+        my $xy = $o->{_scroll}
+        $o->{_id}="$id.t0"
+        $call get_obj_h
+        my ($tx, $ty)
+        $if $xy=~/x/
+            $tx = "scrollbar $id.tx -orient horizontal -command {$id.t0 xview}"
+            $t .= " -xscrollcommand {$id.tx set}"
+        $if $xy=~/y/
+            $ty = "scrollbar $id.ty -orient vertical -command {$id.t0 yview}"
+            $t .= " -yscrollcommand {$id.ty set}"
+
+        push @$out, "frame $id"
+        push @$out, "grid [$t] -row 0 -column 0 -sticky nsew"
+        $if $ty
+            push @$out, "grid [$ty] -row 0 -column 1 -sticky ns"
+        $if $tx
+            push @$out, "grid [$tx] -row 1 -column 0 -sticky ew"
+        push @$out, "grid columnconfigure $id 0 -weight 1"
+        push @$out, "grid rowconfigure $id 0 -weight 1"
+
+#----------------------------------------------- 
+subcode: parse_widget(place, t)
+    $if $t=~/^(\S+)\s+(.+)/
+        # button,canvas,entry,frame,label,listbox
+        # menu,menubutton,message,scale,scrollbar
+        # checkbutton, radiobutton, text, toplevel
+        my ($type, $t)=($1,$2)
+        &call check_grab
+            $(set:P="_$(place)"=>$$(place))
+            my $o = {"_type"=>$type, "_id"=>$id, $(P)}
+            push @$_l, $o
+            $if $o and $t
+                $call parse_widget_attr, $t
+
+    subcode: check_grab
+        my $grab
+        $if $type=~/^\$?(grid|pack|place)$/
+            $grab = $1
+            $type = "frame"
+
+        BLOCK
+
+        $if $grab
+            $call grab
+            $(for:grid,pack,place)
+                $case $grab eq "$1"
+                    tk_$1(\@grab_list, $id)
+
+subcode: parse_widget_attr(t)
+    # push @$out, "[$(t)]"
+    &call parse_loop, $(t)
+        &call if_lex, -(\w+)\s+($(quote)|\S+)
+            my ($w, $v)=($1,$2)
+            $if $w=~/^(name|scroll)/
+                $o->{"_$1"} = $v
+            $elif $w=~/^(sticky|pad[xy]|expand|fill)/
+                $o->{"_$(place)"} .= " -$w $v"
+            $else
+                $o->{$w}=$v
+        &call if_lex, ($(quote))
+            $o->{text}=$1
+        &call if_lex, [,\s]+
+            next

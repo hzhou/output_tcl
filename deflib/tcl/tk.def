@@ -1,0 +1,28 @@
+subcode: _autoload
+    package require Tk
+
+subcode: tk_top
+    $tk_init_top
+    $(if:_p)
+        $(set:_top=$(_p))
+    $(else)
+        $(set:_top=.)
+    BLOCK
+    $tk_output
+
+    subcode: title(@t)
+        wm title $(_top) "$(t)"
+
+    subcode: tk_frame(id)
+        $(set:_p=$(id))
+        BLOCK
+
+    subcode: padding(@t)
+        $(set1:_p=$(_p).f)
+        grid [ttk::frame $(_p) -padding "$(t)"] -column 0 -row 0 -sticky nwes
+        grid columnconfigure $(_top) 0 -weight 1
+        grid    rowconfigure $(_top) 0 -weight 1
+
+subcode: set_scroll(id_v, id_s, xy)
+    $(id_v) configure -$(xy)scrollcommand {$(id_s) set}
+    $(id_s) configure -command {$(id_v) $(xy)view}

@@ -1,0 +1,83 @@
+include: output.def
+include: macros_output/case.def
+include: macros/tk.def
+
+page: output_tcl, output_main
+    type: pm
+    output_dir: lib/MyDef
+    ext: tcl
+    package: MyDef::output_tcl
+
+subcode: parsecode
+    $(set:parse_condition=1)
+    $call parsecode_case_support, if, elseif, tcl_style
+    $call parsecode_common
+
+subcode:: parsecode_special
+    $case $l=~/^NOOP POST_MAIN/
+        $call list_functions
+        return
+
+subcode:: parsecode_func
+    $case $func eq "while"
+        $call @check_while_regex
+        return single_block("while {$param} {", "}", "while")
+    $case $func eq "foreach"
+        $if $param =~/(.+?)\s+in\s*(.+)/
+            return single_block("foreach {$1} $2 {", "}", "foreach")
+        $else
+            return single_block("foreach $param {", "}", "foreach")
+    $case $func eq "proc"
+        $call @check_while_regex
+        return single_block("proc $param {", "}", "proc")
+
+subcode:: parsecode_func_param
+#----------------------------------------------- 
+/*
+subcode: survey_functions
+    $global %fn_hash
+    %fn_hash=()
+    &call each_subcode, fn
+        $fn_hash{$name}=$code
+    $call dbl_list, functions
+*/
+subcode: list_functions
+    push @$out, "NEWLINE"
+    &call each_subcode, fn
+        $call parse_function
+
+    subcode: parse_function
+        my $params = $code->{params}
+        push @$out, "proc $name {@$params} {"
+        push @$out, "INDENT"
+        $code->{scope}="list_sub"
+        MyDef::compileutil::list_sub($code)
+        push @$out, "DEDENT"
+        push @$out, "}"
+        push @$out, "NEWLINE"
+
+#----------------------------------------------- 
+subcode: case_tcl_style
+    $if $case =~/^else/
+        my $c = pop @$out # }
+        $case = "$c $case";
+    $call push_single_block, "$case {$cond} {", "}"
+
+subcode: else_tcl_style
+    my $c = pop @$out # }
+    $call push_single_block, "} else {", "}"
+
+#----------------------------------------------- 
+subcode: check_while_regex
+    $if $param=~/^\/(.*)\/g\s*->\s*(.*)/ -> $re,$tail
+        return single_block("foreach {$tail} [regexp -inline -all -- {$re} \$_] {", "}", "while")
+
+fncode: parse_condition($t)
+    $if $t=~/^\/(.*)\//
+        my $re = $1
+        my $tail = $';
+        $if $tail =~/->\s*(.*)/
+            $t="[regexp {$re} \$_ $1]"
+        $else
+            $t="[regexp {$re} \$_]"
+    return $t
