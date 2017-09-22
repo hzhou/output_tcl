@@ -1,5 +1,6 @@
 include: output.def
 include: macros_output/case.def
+include: macros_output/for.def
 include: macros/tk.def
 
 page: output_tcl, output_main
@@ -22,6 +23,8 @@ subcode:: parsecode_func
     $case $func eq "while"
         $call @check_while_regex
         return single_block("while {$param} {", "}", "while")
+    $case $func eq "for"
+        $call parsecode_for_support, tcl_style
     $case $func eq "foreach"
         $if $param =~/(.+?)\s+in\s*(.+)/
             return single_block("foreach {$1} $2 {", "}", "foreach")
@@ -32,6 +35,23 @@ subcode:: parsecode_func
         return single_block("proc $param {", "}", "proc")
 
 subcode:: parsecode_func_param
+
+#----------------------------------------------- 
+subcode: for_i0_i1_step
+    $if $step eq "1"
+        $step = "incr $var"
+    $elif $step eq "-1"
+        $step = "decr $var"
+    $elif $step=~/^-/
+        $step = "set $var [expr \$$var $step]"
+    $else
+        $step = "set $var [expr \$$var+$step]"
+    $param = "{set $var $i0} {\$$var $i1} {$step}"
+
+subcode: for_tcl_style
+    $call push_single_block, "for $param {", "}"
+
+
 #----------------------------------------------- 
 /*
 subcode: survey_functions

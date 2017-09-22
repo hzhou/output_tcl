@@ -94,11 +94,17 @@ subcode: tk
                     k+=4
 
             subcode: set_rgba(r,g,b,a)
-                pc_imb[k]=$(a)
-                pc_imb[k+1]=$(b)
-                pc_imb[k+2]=$(g)
-                pc_imb[k+3]=$(r)
+                pc_imb[k]=$(r)
+                pc_imb[k+1]=$(g)
+                pc_imb[k+2]=$(b)
+                pc_imb[k+3]=$(a)
 
             subcode: set_u4(c)
                 *((uint32_t*)&pc_imb[k]) = $(c)
+
+            subcode: set_rgb(r,g,b)
+                $call set_rgba, $(r), $(g), $(b), 255
+
+            subcode: set_gray(c)
+                $call set_rgba, $(c), $(c), $(c), 255
 

@@ -1,11 +1,4 @@
 subcode:: parsecode_func
-    $(if:0)
-        $case $func eq "tk_init_top"
-            $call tk_init_top
-            return
-        $case $func eq "tk_output"
-            $call tk_output
-            return
     $case $func =~/^(grid|pack|place)$/
         return "CALLBACK $1 $param"
 
@@ -25,14 +18,6 @@ subcode:: init_page
     $global $tk={}
     $global $tk_top_index
     $tk_top_index=0
-
-subcode: tk_init_top
-    $tk->{_list}=[]
-    $tk->{_config}=[]
-    $tk_top_index++
-    my $prefix
-    $if $tk_top_index>1
-        $prefix=".top$tk_top_index"
 
 subcode: tk_callback_frame
     $tk->{_list}=[]

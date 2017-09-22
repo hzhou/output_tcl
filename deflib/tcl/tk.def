@@ -2,13 +2,11 @@ subcode: _autoload
     package require Tk
 
 subcode: tk_top
-    $tk_init_top
     $(if:_p)
         $(set:_top=$(_p))
     $(else)
         $(set:_top=.)
     BLOCK
-    $tk_output
 
     subcode: title(@t)
         wm title $(_top) "$(t)"
