@@ -46,7 +46,7 @@ subcode: tcl
         Tcl_Eval(tcl, $(cmd))
 
     subcode: tcl_eval(code)
-        $global s_$(code)=[$(code)]
+        $global s_$(code)=[eval:$(code)]
         $if TCL_ERROR == Tcl_Eval(tcl, s_$(code))
             $print "Tcl Error: [%s]", tcl->result
 
