@@ -1,0 +1,37 @@
+include: tcl/tk.def
+
+page: test
+    module: tcl
+
+    $(if:1)
+        $call test_grid
+
+#----------------------------------------------- 
+subcode: test_grid
+    &call tk_top
+        $call title, Feet to Meters
+        # $call padding, 3 3 12 12
+        $grid
+            sticky: e, we, w
+            pad: 5
+            -, $(feet), label "feet"
+            label "is equivalent to", $(meters), label "meters"
+            -, -, button "Calculate" -command calculate
+
+    macros:
+        feet: entry -width 7 -textvariable feet -name feet
+        meters: label -textvariable meters
+
+    focus $(id_feet)
+    bind . <Return> calculate
+
+subcode: test_pack
+    &call tk_top
+        $call title, Feet to Meters
+        $call padding, 3 3 12 12
+        $pack
+            $(left), $(middle), $(right)
+#----------------------------------------------- 
+fncode: calculate
+    set ::meters [expr {round($::feet*0.3048*10000.0)/10000.0}]
+

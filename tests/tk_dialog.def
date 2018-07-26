@@ -1,0 +1,9 @@
+include: tcl/tk.def
+page: test_dialog
+    type: tcl
+
+    wm title . "test"
+
+    set filename [tk_getOpenFile]
+    puts $filename
+    tk_messageBox -message $filename

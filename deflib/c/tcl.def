@@ -4,18 +4,14 @@ subcode: _autoload
     $call @global
 
 subcode: tcl_frame
-    $list _tcl_main
+    $function main
+        &call tcl
+            $call main
 
 subcode: tk_frame
-    $list _tk_main
-
-fncode: _tcl_main(main)
-    &call tcl
-        $call main2
-
-fncode: _tk_main(main)
-    &call tk
-        $call main2
+    $function main
+        &call tk
+            $call main
 
 #----------------------------------------------- 
 subcode: tcl

@@ -42,9 +42,10 @@ fncode: tk_grid($codelist, $param)
     &call each_codelist
         $call filter_meta
         my @t = split /,\s+/, $l
-        $foreach $t,$c in @t
+        $foreach $_i, $t in @t
+            $(set:c=$_i)
             $call set_id
-            my $grid = "-row $r -column $c"
+            my $grid = "-row $r -column $_i"
             $call append_meta
             $if $t=~/^-\s*$/
                 NOOP
@@ -80,11 +81,11 @@ fncode: tk_grid($codelist, $param)
             next
 
     subcode: set_id
-        my $id="$prefix.g$r$c"
+        my $id="$prefix.g$r$(c)"
 
     subcode: append_meta
         $if @sticky
-            $grid.= " -sticky $sticky[$c]"
+            $grid.= " -sticky $sticky[$(c)]"
         $if $pad
             $grid.= " $pad"
 

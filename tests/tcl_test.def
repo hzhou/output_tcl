@@ -1,0 +1,25 @@
+page: test
+    module: tcl
+
+    $(if:0)
+        $call test_hello
+    $(elif:1)
+        $call test_var
+
+#----------------------------------------------- 
+subcode: test_hello
+    puts "Hello World!"
+
+    puts "Hello, World - In quotes"
+    puts {Hello, World - In Braces}
+    puts "This is line 1"; puts "this is line 2"
+    puts "Hello, World; - With  a semicolon inside the quotes"
+    # Words don't need to be quoted unless they contain white space:
+    puts HelloWorld
+
+subcode: test_var
+    set X "string"
+    set Y 3.1415
+    puts "X = $X"
+    puts "Y = $Y"
+

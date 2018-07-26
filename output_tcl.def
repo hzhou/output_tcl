@@ -68,6 +68,8 @@ subcode: list_functions
 
     subcode: parse_function
         my $params = $code->{params}
+        $if !$params
+            $params=[]
         push @$out, "proc $name {@$params} {"
         push @$out, "INDENT"
         $code->{scope}="list_sub"
