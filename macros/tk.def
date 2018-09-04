@@ -42,9 +42,9 @@ fncode: tk_grid($codelist, $param)
     &call each_codelist
         $call filter_meta
         my @t = split /,\s+/, $l
-        $foreach $t,$c in @t
+        $foreach $_i, $t in @t
             $call set_id
-            my $grid = "-row $r -column $c"
+            my $grid = "-row $r -column $_i"
             $call append_meta
             $if $t=~/^-\s*$/
                 NOOP
