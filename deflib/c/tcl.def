@@ -44,7 +44,7 @@ subcode: tcl
     subcode: tcl_eval(code)
         $global s_$(code)=[eval:$(code)]
         $if TCL_ERROR == Tcl_Eval(tcl, s_$(code))
-            $print "Tcl Error: [%s]", tcl->result
+            $print "Tcl Error: [%s]", Tcl_GetResult()
 
 #----------------------------------------------- 
 subcode: tk
@@ -52,9 +52,9 @@ subcode: tk
     $uselib tk, X11
     &call tcl
         $if Tcl_Init(tcl)!= TCL_OK
-            $call die, "Error Tcl_Init: %s", tcl->result
+            $call die, "Error Tcl_Init: %s", Tcl_GetResult()
         $if Tk_Init(tcl) != TCL_OK
-            $call die, "Error Tk_Init: %s", tcl->result
+            $call die, "Error Tk_Init: %s", Tcl_GetResult()
         BLOCK
         Tk_MainLoop()
     # ---- image photo ------------
