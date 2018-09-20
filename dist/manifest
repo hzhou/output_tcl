@@ -1,0 +1,7 @@
+output_tcl.def
+macros
+
+config
+deflib
+install_def.sh
+tests/*.def
